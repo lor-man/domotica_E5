@@ -28,6 +28,12 @@ GPIO_PORTD_PCTL_R   EQU 0x4000752C
 GPIO_PORTD_DIR_R    EQU 0x40007400  
 GPIO_PORTD_AFSEL_R  EQU 0x40007420  
 GPIO_PORTD_DEN_R    EQU 0x4000751C
+;Registros del puerto E
+GPIO_PORTE_AMSEL_R	EQU 0x40024528
+GPIO_PORTE_AFSEL_R	EQU 0x40024420
+GPIO_PORTE_PCTL_R	EQU 0x4002452C
+GPIO_PORTE_DIR_R	EQU	0x40024400
+GPIO_PORTE_DEN_R	EQU	0x4002451C
 ;Registros del puerto F
 GPIO_PORTF_AMSEL_R  EQU 0x40025528
 GPIO_PORTF_PCTL_R   EQU 0x4002552C
@@ -48,7 +54,8 @@ SYSCTL_RCC_R		EQU	0x400FE060 ; Configura el reloj del sistema y los osciladores,
 ;-------------------------------------------------------------------------------------------------------------------------------------------------------
 ;Registros de pines-------------------------------------------------------------------------------------------------------------------------------------
 ;Entrada
-I_TPI_PORTD_R         EQU 0x400070F0 ; Pines: PD2=Timbre, PD3=abrir Puerta, PD4= cerar Puerta y PD5= encender/apagar Iluminacion
+I_TPI_PORTD_R         EQU 0x40007030 ; Pines: PD2=Timbre, PD3=abrir Puerta
+I_PI_PORTE_R          EQU 0x4002400C ; Pines: PE0= cerar Puerta y PE1= encender/apagar Iluminacion
 I_A_PORTC_R           EQU 0x400061C0 ; Pines: PC4=Aire frio, PC5= Aire caliente y PC6= apagar Aire
 I_AM_PORTA_R          EQU 0x40004300 ; Pines: PA6=Automatico y PA7=Manual
 ;Salida
@@ -65,9 +72,9 @@ CONST_DELAY_100MS EQU 400000
 
 Start
 ;---------------------------------------------------------
-    LDR R1, =SYSCTL_RCGCGPIO_R;Habilitacion del reloj para los puertos A, B, C y D
+    LDR R1, =SYSCTL_RCGCGPIO_R;Habilitacion del reloj para los puertos A, B, C, D y E
     LDR R0,[R1]
-    ORR R0, R0,#0x0F
+    ORR R0, R0,#0x1F
     STR R0,[R1]
     NOP
     NOP
@@ -86,26 +93,46 @@ Start
 ;----------------------------------------------------------
     LDR R1, = GPIO_PORTD_AMSEL_R;Configuración del puerto D
     LDR R0,[R1]
-    BIC R0,R0,#0x3C
+    BIC R0,R0,#0x0C
     STR R0,[R1]
     LDR R1, = GPIO_PORTD_AFSEL_R
     LDR R0,[R1]
-    BIC R0,R0,#0x3C
+    BIC R0,R0,#0x0C
     STR R0,[R1]
     LDR R1, = GPIO_PORTD_PCTL_R
     LDR R0,[R1]
-    BIC R0,R0,#0x00F00000
-    BIC R0,R0,#0x000F0000
     BIC R0,R0,#0x0000F000
     BIC R0,R0,#0x00000F00
     STR R0,[R1]
     LDR R1, = GPIO_PORTD_DIR_R
     LDR R0,[R1]
-    BIC R0,R0,#0x3C
+    BIC R0,R0,#0x0C
     STR R0,[R1]
     LDR R1, = GPIO_PORTD_DEN_R
     LDR R0,[R1]
-    ORR R0,R0,#0x3C
+    ORR R0,R0,#0x0C
+    STR R0,[R1]
+;----------------------------------------------------------
+    LDR R1, = GPIO_PORTE_AMSEL_R;Configuración del puerto E
+    LDR R0,[R1]
+    BIC R0,R0,#0x03
+    STR R0,[R1]
+    LDR R1, = GPIO_PORTE_AFSEL_R
+    LDR R0,[R1]
+    BIC R0,R0,#0x03
+    STR R0,[R1]
+    LDR R1, = GPIO_PORTE_PCTL_R
+    LDR R0,[R1]
+    BIC R0,R0,#0x000000F0
+    BIC R0,R0,#0x0000000F
+    STR R0,[R1]
+    LDR R1, = GPIO_PORTE_DIR_R
+    LDR R0,[R1]
+    BIC R0,R0,#0x03
+    STR R0,[R1]
+    LDR R1, = GPIO_PORTE_DEN_R
+    LDR R0,[R1]
+    ORR R0,R0,#0x03
     STR R0,[R1]
 ;-------------------------------------------------------------    
     LDR R1, = GPIO_PORTC_AMSEL_R;Configuración del puerto C
@@ -436,17 +463,19 @@ MAIN_LOOP
     LDR R0,[R1]
     LDR R1,=I_A_PORTC_R
     LDR R5,[R1]
-    LDR R3,=CONST_DELAY_100MS
+    LDR R1,= I_PI_PORTE_R   
+    LDR R8,[R1]
+    LDR R3,=CONST_DELAY_100MS ; Registros R0=PORTD, R5=PORTC y R8=PORTE para guardar los botones pulsados
     BL delay_Xs
     LDR R2,=0
     LDR R3,=CONST_DELAY_500MS
     CMP R0,#0x04 ; Se toco el timbre
     BEQ timbre
-    CMP R0,#0x04 ; Abrir puerta
+    CMP R0,#0x08 ; Abrir puerta
     BEQ puerta_o
-    CMP R0,#0x04 ; Cerrar puerta
+    CMP R8,#0x01 ; Cerrar puerta
     BEQ puerta_c
-    CMP R0,#0x04 ; Enciende/apaga iluminacion
+    CMP R8,#0x02 ; Enciende/apaga iluminacion
     BEQ iluminacion
     CMP R5,#0x10 ; Aire frio
     BEQ aire_f
@@ -458,3 +487,6 @@ MAIN_LOOP
 	B MAIN_LOOP
 	ALIGN
 	END	
+
+    I_TPI_PORTD_R        ; Pines: PD2=Timbre, PD3=abrir Puerta
+    I_PI_PORTE_R         ; Pines: PE0= cerar Puerta y PE1= encender/apagar Iluminacion
