@@ -28,18 +28,19 @@ GPIO_PORTD_PCTL_R   EQU 0x4000752C
 GPIO_PORTD_DIR_R    EQU 0x40007400  
 GPIO_PORTD_AFSEL_R  EQU 0x40007420  
 GPIO_PORTD_DEN_R    EQU 0x4000751C
+;Registros del puerto F
+GPIO_PORTF_DIR_R   EQU 0x40025400
+GPIO_PORTF_AFSEL_R EQU 0x40025420
+GPIO_PORTF_DEN_R   EQU 0x4002551C
+GPIO_PORTF_AMSEL_R EQU 0x40025528
+GPIO_PORTF_PCTL_R  EQU 0x4002552C
 ;Registros del puerto E
 GPIO_PORTE_AMSEL_R	EQU 0x40024528
 GPIO_PORTE_AFSEL_R	EQU 0x40024420
 GPIO_PORTE_PCTL_R	EQU 0x4002452C
 GPIO_PORTE_DIR_R	EQU	0x40024400
 GPIO_PORTE_DEN_R	EQU	0x4002451C
-;Registros del puerto F
-GPIO_PORTF_AMSEL_R  EQU 0x40025528
-GPIO_PORTF_PCTL_R   EQU 0x4002552C
-GPIO_PORTF_DIR_R    EQU 0x40025400  
-GPIO_PORTF_AFSEL_R  EQU 0x40025420  
-GPIO_PORTF_DEN_R    EQU 0x4002551C
+
 ;Registro de reloj de puertos
 SYSCTL_RCGCGPIO_R   EQU 0x400FE608
 ;Registro de reloj del pwm0
@@ -74,7 +75,7 @@ Start
 ;---------------------------------------------------------
     LDR R1, =SYSCTL_RCGCGPIO_R;Habilitacion del reloj para los puertos A, B, C, D y E
     LDR R0,[R1]
-    ORR R0, R0,#0x1F
+    ORR R0, R0,#0x3F
     STR R0,[R1]
     NOP
     NOP
@@ -180,7 +181,7 @@ Start
     STR R0,[R1]
 ;-------------------------------------------------------------
 ;---------------Puerto de salida-----------------------------
-    LDR R1, = GPIO_PORTB_AMSEL_R;Configuración del puerto B, habilitación de funcion alternativa para el pin PB6
+	LDR R1, = GPIO_PORTB_AMSEL_R;Configuración del puerto B, habilitación de funcion alternativa para el pin PB6
     LDR R0,[R1]
     BIC R0,R0,#0xF2
     STR R0,[R1]
@@ -307,8 +308,13 @@ automatico
     BL control_off
     B MAIN_LOOP
 
-sonido
-    ADD R6,#1
+timbre ; Dos opciones si esta en modo automatico o modo manual
+    BL control_on
+    LDR R3,=CONST_DELAY_250MS
+    LDR R6,=0
+    LDR R1,=O_TPIA_PORTB_R
+    LDR R0,[R1]
+;---------------------------------------
     ORR R0,R0,#0x80
     STR R0,[R1]
     BL delay_Xs
@@ -317,17 +323,6 @@ sonido
     STR R0,[R1]
     BL delay_Xs
     LDR R2,=0
-    CMP R6,#4
-    BNE sonido
-    BX LR
-
-timbre ; Dos opciones si esta en modo automatico o modo manual
-    BL control_on
-    LDR R3,=CONST_DELAY_250MS
-    LDR R6,=0
-    LDR R1,=O_TPIA_PORTB_R
-    LDR R0,[R1]
-    BL sonido  
     CMP R4,#0x08;      
     BEQ.W MAIN_LOOP;si el modo es manual entonces regresa al programa principal
     ;Cuando el modo es automatico se sigue la jerarquia descrita en la propuesta
@@ -444,8 +439,8 @@ MAIN_LOOP
     BL control_off
 ;--------------Visualizacion de modo manual o automatico-------
     LDR R1,=O_CONTROL_PORTF_R
-    LDR R0,[R1]
-    ORR R0,R0,R4
+;    LDR R0,[R1]
+    MOV R0,R4
     STR R0,[R1]
 ;--------------Seleccion modo manual o automatico--------------
     LDR R2,=0
@@ -487,6 +482,3 @@ MAIN_LOOP
 	B MAIN_LOOP
 	ALIGN
 	END	
-
-    I_TPI_PORTD_R        ; Pines: PD2=Timbre, PD3=abrir Puerta
-    I_PI_PORTE_R         ; Pines: PE0= cerar Puerta y PE1= encender/apagar Iluminacion
